@@ -10,7 +10,7 @@ namespace my {
     class SmallVector {
     public:
         SmallVector() {
-            this->size_ = 0;
+            assert(0 < N && "SmallVector size should be bigger than 0");
         }
 
         ~SmallVector() {
@@ -30,10 +30,30 @@ namespace my {
 
             ++size_;
         }
+
         std::size_t size() const { return size_; }
+
         std::size_t capacity() const { return N;}             // == N
-        // T& operator[](std::size_t i);
-        // const T& operator[](std::size_t i) const;
+
+        T& operator[](std::size_t i) {
+            assert(i < size_ && "SmallVector Out Of Index Error");
+            // i 위치 계산
+            std::byte* byte_addr = &buf_[i * sizeof(T)];
+            T* slot = reinterpret_cast<T*>(byte_addr);
+
+            return *slot;
+        }
+        const T& operator[](std::size_t i) const {
+            assert(i < size_ && "SmallVector Out Of Index Error");
+            // i 위치 계산 
+            // 아래가 맞는 원칙 const 선언
+            // const std::byte* byte_addr = &buf_[i * sizeof(T)];
+            // const T* slot = reinterpret_cast<const T*>(byte_addr);
+            auto* byte_addr = &buf_[i * sizeof(T)];
+            auto* slot = reinterpret_cast<const T*>(byte_addr);
+
+            return *slot;
+        }
 
     private:
         // 그냥 메모리 덩어리
@@ -41,6 +61,6 @@ namespace my {
         // T의 N번 할당 < T * N 사이즈 할당 (효율 up)
         // + alignas로 T의 크기에 맞게 메모리 정렬
         alignas(T) std::byte buf_[N * sizeof(T)];
-        std::size_t size_;
+        std::size_t size_ = 0;
     };
 }
