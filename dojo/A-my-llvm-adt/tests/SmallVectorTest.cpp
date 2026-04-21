@@ -4,6 +4,20 @@
 #include "my/SmallVector.h"
 #include "string.h"
 
+
+namespace {
+    struct Counted {
+        static inline int ctor = 0;
+        static inline int dtor = 0;
+
+        int value;
+        explicit Counted(int v) : value(v)         { ++ctor; } 
+        Counted(const Counted& o) : value(o.value) { ++ctor; }
+        ~Counted()                                 { ++dtor; }
+    };
+}
+
+
 namespace my{
     TEST(SmallVectorTest, Constructed_Size) {
         SmallVector<int, 4> v;
@@ -26,14 +40,37 @@ namespace my{
         EXPECT_EQ(3, v.size());
     };
 
-    TEST(SmallVectorDeathTest, PushBack_oversize) {
+    TEST(SmallVectorTest, PushBack_oversize) {
         SmallVector<int, 4> v;
-        v.push_back(4);
-        v.push_back(1);
-        v.push_back(1);
-        v.push_back(1);
-        EXPECT_DEATH(v.push_back(1), "SmallVector capacity exceeded");
+        for (int i=0; i < 10; ++i) {
+            v.push_back(i);
+        }
+
+        EXPECT_EQ(v.size(), 10);
+        EXPECT_GE(v.capacity(), 10);
+        for (size_t i=0; i < 10; ++i) {
+            EXPECT_EQ(v[i], i);
+        }
     };
+
+    TEST(SmallVectorTest, Grow_ValuePreserve) {
+        SmallVector<int, 2> v;
+        v.push_back(10);
+        v.push_back(20);
+        v.push_back(30);
+        EXPECT_EQ(v[0], 10);
+        EXPECT_EQ(v[1], 20);
+        EXPECT_EQ(v[2], 30);
+    }
+
+    TEST(SmallVectorTest, Grow_NoLeak) {
+        Counted::ctor = Counted::dtor = 0;
+        {
+            SmallVector<Counted, 2> v;
+            for (int i=0; i<10; ++i) v.push_back(Counted{i});
+        }
+        EXPECT_EQ(Counted::ctor, Counted::dtor);
+    }
 
     TEST(SmallVectorTest, Index_InsertionOrder) {
         SmallVector<int, 4> v;
@@ -108,9 +145,38 @@ namespace my{
         EXPECT_EQ(sv[0], "hello World!");
     };
 
-    TEST(SmallVectorDeathTest, Ctor_Under0) {
-        // EXPECT_EXIT(SmallVector<int, 0>, predicate, matcher)
-    }
+    TEST(SmallVectorTest, Dtor_Counted) {
+        Counted::ctor = Counted::dtor = 0;
 
+        {
+            SmallVector<Counted, 4> v;
+
+            v.push_back(Counted{1});    // Counted 임시객체 생성 + 복사로 ctor + 2;
+            v.push_back(Counted{2});
+            EXPECT_EQ(Counted::ctor, 4);
+            EXPECT_EQ(Counted::dtor, 2);
+        }
+        EXPECT_EQ(Counted::dtor, 4);
+    };
+
+    TEST(SmallVectorTest, Dtor_Counted2) {
+        Counted::ctor = Counted::dtor = 0;
+
+        {
+            SmallVector<Counted, 4> v;
+
+            v.push_back(Counted{1});    // Counted 임시객체 생성 / 복사로 ctor + 2;
+            v.push_back(Counted{2});
+            EXPECT_EQ(Counted::ctor, 4);
+            EXPECT_EQ(Counted::dtor, 2);
+            {
+                v.push_back(Counted{3});
+                EXPECT_EQ(Counted::ctor, 6);
+                EXPECT_EQ(Counted::dtor, 3);
+            }
+            EXPECT_EQ(Counted::dtor, 3);
+        }
+        EXPECT_EQ(Counted::dtor, 6);
+    }
 
 }
