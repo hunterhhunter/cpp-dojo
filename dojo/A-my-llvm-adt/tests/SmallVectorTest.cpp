@@ -132,7 +132,7 @@ namespace my{
         SmallVector<float, 4> fv;
         SmallVector<int, 4> iv;
         SmallVector<bool, 4> bv;
-        SmallVector<string, 4> sv;
+        SmallVector<std::string, 4> sv;
 
         fv.push_back(1.1f);
         iv.push_back(1);

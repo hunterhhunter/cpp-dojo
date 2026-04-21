@@ -4,7 +4,6 @@
 #include <iostream>
 #include <iterator>
 #include <new>
-using namespace std;
 
 namespace my {
     template <typename T, std::size_t N>
